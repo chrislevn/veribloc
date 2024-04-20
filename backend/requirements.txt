@@ -2,3 +2,4 @@ fastapi==0.110.2
 pymongo[srv]
 pytest==7.0.1
 python-dotenv==1.0.1
+uvicorn
