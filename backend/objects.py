@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 from pydantic import BaseModel
 @dataclass
 class UserInfo(BaseModel): 
@@ -16,6 +17,7 @@ class UserInfo(BaseModel):
 
     def __init__(self, first_name, last_name, email, password, institution=None, projects=None, participated_projects=None, is_active=True, balance=0.0, payment=None):
         super().__init__(first_name=first_name, last_name=last_name, email=email, password=password, institution=institution, projects=projects, participated_projects=participated_projects, is_active=is_active, balance=balance, payment=payment)
+
     
     def to_dict(self):
         return {
@@ -47,6 +49,8 @@ class ProjectInfo(BaseModel):
 
     def __init__(self, title, description, owner, members, participants, is_active=True, project_type="private", start_date=None, end_date=None, budget=0.0, salary=0.0):
         super().__init__(title=title, description=description, owner=owner, members=members, participants=participants, is_active=is_active, project_type=project_type, start_date=start_date, end_date=end_date, budget=budget, salary=salary)
+
+
         
     def to_dict(self):
         return {
@@ -75,6 +79,8 @@ class TransactionInfo(BaseModel):
     def __init__(self, transaction_id, project_id, seller_id, buyer_id, amount, valid_until=(datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")):
         super().__init__(transaction_id=transaction_id, project_id=project_id, seller_id=seller_id, buyer_id=buyer_id, amount=amount, valid_until=valid_until)
 
+
+
     def to_dict(self):
         return {
             "transaction_id": self.transaction_id,
@@ -84,18 +90,21 @@ class TransactionInfo(BaseModel):
             "amount": self.amount,
             "valid_until": self.valid_until,
         }
-    
 
+@dataclass
 class SurveyInfo(BaseModel):
-    def __init__(self, seller_id, buyer_id, project_id, content, answers, is_accepted, feedback=""):
-        self.seller_id = seller_id
-        self.buyer_id = buyer_id
-        self.project_id = project_id
-        self.content = content
-        self.answers = answers
-        self.is_accepted = is_accepted
-        self.feedback = feedback
+    seller_id: str
+    buyer_id: str
+    project_id: str
+    content: str
+    answers: list
+    is_accepted: bool
+    feedback: str = ""
 
+    def __init__(self, seller_id, buyer_id, project_id, content, answers, is_accepted, feedback=""):
+        super().__init__(seller_id=seller_id, buyer_id=buyer_id, project_id=project_id, content=content, answers=answers, is_accepted=is_accepted, feedback=feedback)
+ 
+        
     def to_dict(self):
         return {
             "seller_id": self.seller_id,
@@ -112,3 +121,9 @@ class SurveyInfo(BaseModel):
     
     def __repr__(self):
         return f"Survey: {self.content} from {self.seller_id} to {self.buyer_id} for project {self.project_id} with answers {self.answers} and feedback {self.feedback}"
+    
+    def __setattr__(self, name: str, value: Any) -> None:
+        return super().__setattr__(name, value)
+    
+    def __getattribute__(self, name: str) -> Any:
+        return super().__getattribute__(name)

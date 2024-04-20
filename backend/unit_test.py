@@ -81,9 +81,6 @@ def test_integration():
         payment={"method": "bitcoin", "amount": 50.0},
     )
 
-    assert user.insert_user(buyer_info) == {"status": "success"}
-    buyer_id = user.get_user_id(buyer_info.email, buyer_info.password)
-
     seller_info = UserInfo(
         first_name="John",
         last_name="Doe",
@@ -97,7 +94,13 @@ def test_integration():
         payment={"method": "bitcoin", "amount": 50.0},
     )
 
-    user.insert_user(seller_info)
+    # Clean up if user already exists
+    user.delete_user_by_email(buyer_info.email)
+    user.delete_user_by_email(seller_info.email)
+
+    assert user.insert_user(buyer_info) == {"status": "success"}
+    buyer_id = user.get_user_id(buyer_info.email, buyer_info.password)
+    assert user.insert_user(seller_info) == {"status": "success"}
     seller_id = user.get_user_id(seller_info.email, seller_info.password)
 
     # Seller add balance to account
@@ -115,24 +118,30 @@ def test_integration():
         project_type="public",
         start_date=str(datetime.now()),
         end_date=str(datetime.now() + timedelta(days=30)),
+        budget=0.0,
+        salary=10.0,
     )
-    project.insert_project(project_info)
-    project_id = project.get_project_id(project_info.title, seller_info.email)
+
+    # clean up if project already exists
+    project.delete_project(project_info.title, seller_info.email)
+ 
+    assert project.insert_project(project_info) == {"status": "success"}
+    project_id = project.get_project_id(project_info.title, seller_info.email)["_id"]
+
+    print(project_id)
 
     # Seller adds budget to project
-    project.set_project_budget(project_info.title, project_info.owner, 500.0)
-    project.set_project_salary(project_info.title, project_info.owner, 5.0)
+    project.add_fund_to_project(project_info.title, seller_info.email, 1000.0)
 
     # Fake owner creates project survey
     survey = Survey()
-    survey = Survey()
     survey_info = SurveyInfo(
-        seller_id=seller_id,
-        buyer_id=buyer_id,
-        project_id=project_id,
+        seller_id=str(seller_id),
+        buyer_id=str(buyer_id),
+        project_id=str(project_id),
         content="This is a survey",
         answers=[],
-        is_accepted=True,
+        is_accepted=False,
         feedback="",
     )
 
@@ -141,18 +150,20 @@ def test_integration():
         project_info.title, owner=seller_info.email, participant=buyer_info.email
     )
 
+    
+    # clean up if survey already exists
+    survey.delete_survey(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id))
+
     # System sends survey to participant      
-    print(project_id)
-    survey.send_survey(survey_info, seller_id=seller_id, buyer_id=buyer_id, project_id=project_id)
+    assert survey.insert_survey(survey_info) == {"status": "success"}
 
     # Participant read survey
-    read_survey = survey.get_survey(seller_id=seller_id, buyer_id=buyer_id, project_id=project_id)
+    read_survey = survey.get_survey_content(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id))
     assert read_survey != None
 
     # Participant answers survey
     answers = ["Answer 1", "Answer 2"]
-    survey_info["answers"] = answers
-    survey.answer_survey(survey_info)
+    survey.answer_survey(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id), answers=answers)
 
     # Owner/system verifies survey
     verify_status = survey.verify_survey(survey_info)
@@ -160,8 +171,7 @@ def test_integration():
 
     # Owner/system gives feedback
     feedback = "Good job!"
-    survey_info["feedback"] = feedback
-    survey.give_feedback(survey_info)
+    survey.give_feedback(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id), feedback=feedback)
 
     # Owner/system pays participant
     if verify_status:

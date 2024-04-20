@@ -2,6 +2,7 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 from objects import UserInfo, ProjectInfo, TransactionInfo, SurveyInfo
+from datetime import datetime
 
 load_dotenv(override=True)
 
@@ -37,7 +38,7 @@ class User:
         users = self.get_users_database()
         return users.find_one({"email": email})["_id"]
 
-    def get_user_by_id(self, id):
+    def get_user_by_id(self, id) -> dict:
         users = self.get_users_database()
         return users.find_one({"_id": id})
     
@@ -106,6 +107,7 @@ class Project:
             raise Exception("Project already exists")
         else:
             projects.insert_one(project.to_dict())
+            return {"status": "success"}
 
     def get_project(self, id):
         projects = self.get_projects_database()
@@ -113,7 +115,8 @@ class Project:
     
     def get_project_id(self, title, owner):
         projects = self.get_projects_database()
-        return projects.find_one({"title": title, "owner": owner})["_id"]
+        result = projects.find_one({"title": title, "owner": owner})
+        return result["_id"]
     
     def join_project(self, title, owner, participant):
         projects = self.get_projects_database()
@@ -167,16 +170,20 @@ class Project:
         projects = self.get_projects_database()
         return projects.find({"project_type": "public"})
     
-    def set_project_budget(self, title, owner, budget):
+    def add_fund_to_project(self, title, owner, amount):
         projects = self.get_projects_database()
         project = projects.find_one({"title": title, "owner": owner})
-
+        project["budget"] += amount
         user = User()
-        user_info = user.get_user_by_email(owner)
-        if user_info["balance"] < budget:
-            raise Exception("User does not have enough balance. Please increase your balance or decrease the budget.")
-        else:
-            project["budget"] = budget
+        user.decrease_balance(owner, amount)
+        projects.update_one({"title": title, "owner": owner}, {"$set": project})
+        return {"status": "success"}
+    
+    def verify_project(self, title, owner):
+        projects = self.get_projects_database()
+        project = projects.find_one({"title": title, "owner": owner})
+        if project["end_date"] < str(datetime.now()):
+            project["is_active"] = False
             projects.update_one({"title": title, "owner": owner}, {"$set": project})
             return {"status": "success"}
     
@@ -245,21 +252,22 @@ class Transaction:
         transactions = self.get_transactions_database()
         return transactions.find_one({"transaction_id": transaction_id})
     
-    def pay_helper(self, transaction): 
+    def pay_helper(self, transaction: TransactionInfo): 
         try:
             userdb = User()
-            seller = userdb.get_user_by_id(transaction.seller_id)
+            projectdb = Project()
+            project = projectdb.get_project(transaction.project_id)
             buyer = userdb.get_user_by_id(transaction.buyer_id)
 
-            
+    
             if transaction.project_id in buyer["projects"]:
-                if seller["balance"] < transaction.amount:
+                if project["budget"] < transaction.amount:
                     raise Exception("Seller does not have enough balance")
                 else:
-                    seller["balance"] += transaction.amount
-                    buyer["balance"] -= transaction.amount
-                    userdb.update_user(seller["email"], seller)
-                    userdb.update_user(buyer["email"], buyer)
+                    buyer["budget"] += transaction.amount
+                    project["budget"] -= transaction.amount
+                    userdb.update_user(buyer.email, buyer)
+                    projectdb.update_project(transaction.project_id, project)
                     return {"status": "success"}
             else: 
                 raise Exception("Buyer is not a participant of the project")
@@ -322,11 +330,22 @@ class Survey:
             raise Exception("Survey already exists")
         else:
             surveys.insert_one(survey.to_dict())
+            return {"status": "success"}
 
+    def get_survey_content(self, seller_id, buyer_id, project_id):
+        surveys = self.get_surveys_database()
+        survey = surveys.find_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id})
+
+        if survey:
+            return survey
+        else:
+            raise Exception("Survey does not exist")
+        
     def get_survey(self, seller_id, buyer_id, project_id):
         surveys = self.get_surveys_database()
-        return surveys.find_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id})["content"]
-    
+        return surveys.find_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id})
+
+
     def accept_survey(self, seller_id, buyer_id, project_id, content, answers):
         if self.get_survey(seller_id, buyer_id, project_id):
             if self.verify_survey(seller_id, buyer_id, project_id):
@@ -357,23 +376,12 @@ class Survey:
     
     def delete_survey(self, seller_id, buyer_id, project_id):
         surveys = self.get_surveys_database()
-        if surveys.find_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id}):
-            surveys.delete_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id})
-        else:
-            raise Exception("Survey does not exist")
-
-    def send_survey(self, survey: SurveyInfo, seller_id, buyer_id, project_id):
-        content = survey.content
-        answers = survey.answers
-        if self.get_survey(seller_id, buyer_id, project_id):
-            raise Exception("Survey already exists")
-        else:
-            survey = SurveyInfo(seller_id, buyer_id, project_id, content, answers, False)
-            if survey.answers != []:
-                raise Exception("Survey has to be empty")
-            else:
-                self.insert_survey(survey)
-                return {"status": "success"}
+        try:
+            if surveys.find_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id}):
+                surveys.delete_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id})
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+            
         
     def answer_survey(self, seller_id, buyer_id, project_id, answers):
         survey = self.get_survey(seller_id, buyer_id, project_id)
@@ -386,3 +394,4 @@ class Survey:
         survey["feedback"] = feedback
         self.insert_survey(survey)
         return {"status": "success"}
+    
