@@ -35,6 +35,8 @@ def test_insert_user():
         participated_projects=["Project 3", "Project 4"],
         balance=100.0,
         payment={"method": "bitcoin", "amount": 50.0},
+        institution="University of Toronto",
+        is_active=True,
     )
 
     user.insert_user(user_info)
@@ -51,10 +53,11 @@ def test_create_project():
         members=["Member 1", "Member 2"],
         participants=["Participant 1", "Participant 2"],
         is_active=True,
-        start_date=None,
-        end_date=None,
+        start_date=str(datetime.now()),
+        end_date=str(datetime.now() + timedelta(days=30)),
         budget=0.0,
         salary=0.0,
+        project_type="public",
     )
 
     project.insert_project(fake_project_info)
@@ -71,6 +74,8 @@ def test_integration():
         email="jane_doe@gmail.com",
         password="password321",
         projects=["Project 1", "Project 2"],
+        institution="N/A",
+        is_active=True,
         participated_projects=[],
         balance=100.0,
         payment={"method": "bitcoin", "amount": 50.0},
@@ -84,7 +89,9 @@ def test_integration():
         last_name="Doe",
         email="john_doe@gmail.com",
         password="password123",
+        institution="University of Toronto",
         projects=[""],
+        is_active=True,
         participated_projects=["Project 1"],
         balance=100.0,
         payment={"method": "bitcoin", "amount": 50.0},
@@ -105,7 +112,7 @@ def test_integration():
         members=["Member 1", "Member 2"],
         participants=["Participant 1", "Participant 2"],
         is_active=True,
-        project_type="private",
+        project_type="public",
         start_date=str(datetime.now()),
         end_date=str(datetime.now() + timedelta(days=30)),
     )
