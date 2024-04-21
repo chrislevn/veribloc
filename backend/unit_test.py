@@ -128,13 +128,12 @@ def test_integration():
     assert project.insert_project(project_info) == {"status": "success"}
     project_id = project.get_project_id(project_info.title, seller_info.email)["_id"]
 
-    print(project_id)
-
     # Seller adds budget to project
     project.add_fund_to_project(project_info.title, seller_info.email, 1000.0)
 
     # Fake owner creates project survey
     survey = Survey()
+
     survey_info = SurveyInfo(
         seller_id=str(seller_id),
         buyer_id=str(buyer_id),
@@ -150,12 +149,12 @@ def test_integration():
         project_info.title, owner=seller_info.email, participant=buyer_info.email
     )
 
-    
     # clean up if survey already exists
     survey.delete_survey(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id))
 
-    # System sends survey to participant      
-    assert survey.insert_survey(survey_info) == {"status": "success"}
+    # System sends survey to participant    
+    result_insert_survey = survey.insert_survey(survey_info)
+    assert result_insert_survey == {"status": "success"}
 
     # Participant read survey
     read_survey = survey.get_survey_content(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id))
@@ -163,10 +162,10 @@ def test_integration():
 
     # Participant answers survey
     answers = ["Answer 1", "Answer 2"]
-    survey.answer_survey(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id), answers=answers)
+    survey.answer_survey(survey_info.seller_id, survey_info.buyer_id, survey_info.project_id, answers)
 
     # Owner/system verifies survey
-    verify_status = survey.verify_survey(survey_info)
+    verify_status = survey.verify_survey(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id))
     assert verify_status == True
 
     # Owner/system gives feedback
@@ -179,8 +178,8 @@ def test_integration():
         transaction_info = TransactionInfo(
             transaction_id="123",
             project_id="Project 1",
-            seller_id=seller_id,
-            buyer_id=buyer_id,
+            seller_id=str(seller_id),
+            buyer_id=str(buyer_id),
             amount=10.0,
         )
         transaction.pay(transaction_info)
@@ -190,6 +189,7 @@ def test_integration():
     user.delete_user_by_email(seller_info.email)
     user.delete_user_by_email(buyer_info.email)
     project.delete_project("Project 1", seller_info.email)
+    survey.delete_survey(seller_id=str(seller_id), buyer_id=str(buyer_id), project_id=str(project_id))
 
 
 if __name__ == "__main__":

@@ -116,14 +116,6 @@ class SurveyInfo(BaseModel):
             "feedback": self.feedback,
         }
     
-    def __str__(self):
-        return f"Survey: {self.content} from {self.seller_id} to {self.buyer_id} for project {self.project_id} with answers {self.answers} and feedback {self.feedback}"
-    
-    def __repr__(self):
-        return f"Survey: {self.content} from {self.seller_id} to {self.buyer_id} for project {self.project_id} with answers {self.answers} and feedback {self.feedback}"
-    
     def __setattr__(self, name: str, value: Any) -> None:
         return super().__setattr__(name, value)
     
-    def __getattribute__(self, name: str) -> Any:
-        return super().__getattribute__(name)

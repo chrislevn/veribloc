@@ -326,11 +326,13 @@ class Survey:
     
     def insert_survey(self, survey: SurveyInfo):
         surveys = self.get_surveys_database()
-        if surveys.find_one({"seller_id": survey.seller_id, "buyer_id": survey.buyer_id, "project_id": survey.project_id}):
-            raise Exception("Survey already exists")
+
+        if isinstance(survey, dict):
+            surveys.insert_one(survey)
         else:
+            # convert to dict
             surveys.insert_one(survey.to_dict())
-            return {"status": "success"}
+        return {"status": "success"}
 
     def get_survey_content(self, seller_id, buyer_id, project_id):
         surveys = self.get_surveys_database()
@@ -379,6 +381,9 @@ class Survey:
         try:
             if surveys.find_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id}):
                 surveys.delete_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id})
+                return {"status": "success"}
+            else:
+                raise Exception("Survey does not exist")
         except Exception as e:
             return {"status": "error", "message": str(e)}
             
@@ -386,12 +391,19 @@ class Survey:
     def answer_survey(self, seller_id, buyer_id, project_id, answers):
         survey = self.get_survey(seller_id, buyer_id, project_id)
         survey["answers"] = answers
-        self.insert_survey(survey)
+        
+        # update survey
+        self.update_survey(seller_id, buyer_id, project_id, survey)
         return {"status": "success"}
     
     def give_feedback(self, seller_id, buyer_id, project_id, feedback):
         survey = self.get_survey(seller_id, buyer_id, project_id)
         survey["feedback"] = feedback
-        self.insert_survey(survey)
+        self.update_survey(seller_id, buyer_id, project_id, survey)
+        return {"status": "success"}
+    
+    def update_survey(self, seller_id, buyer_id, project_id, survey):
+        surveys = self.get_surveys_database()
+        surveys.update_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id}, {"$set": survey})
         return {"status": "success"}
     

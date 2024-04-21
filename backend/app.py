@@ -29,6 +29,15 @@ def login(email: str, password: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
     
+@app.get("/delete_user")
+def delete_user(email: str):
+    try:
+        db = User()
+        db.delete_user_by_email(email)
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    
 @app.post("/create_project")
 def create_project(project: ProjectInfo):
     try:
@@ -46,6 +55,16 @@ def get_project(title: str, owner: str):
         return {"status": "success", "project": project}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    
+@app.get("/delete_project")
+def delete_project(title: str, owner_email: str):
+    try:
+        db = Project()
+        db.delete_project(title, owner_email)
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
     
 @app.post("/list_my_projects")
 def list_projects(owner_email: str):
@@ -75,23 +94,23 @@ def join_project(title: str, owner: str, participant_email: str):
         return {"status": "error", "message": str(e)}
     
 @app.post("/leave_project")
-def leave_project(title: str, owner: str, participant_email: str):
+def leave_project(title: str, owner_email: str, participant_email: str):
     try:
         db = Project()
-        db.leave_project(title, owner, participant_email)
+        db.leave_project(title, owner_email, participant_email)
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
     
-@app.post("/pay")
-def pay(transaction: TransactionInfo):
+@app.post("/delete_survey")
+def delete_survey(seller_id: str, buyer_id: str, project_id: str):
     try:
-        db = Transaction()
-        db.pay(transaction)
+        db = Survey()
+        db.delete_survey(seller_id, buyer_id, project_id)
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-    
+        
 @app.post("/send_survey")
 def send_survey(survey: SurveyInfo):
     try:
@@ -139,3 +158,11 @@ def give_feedback(survey: SurveyInfo):
     except Exception as e:
         return {"status": "error", "message": str(e)}
     
+@app.post("/pay")
+def pay(transaction: TransactionInfo):
+    try:
+        db = Transaction()
+        db.pay(transaction)
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
