@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 from objects import UserInfo, ProjectInfo, TransactionInfo, SurveyInfo
 from datetime import datetime
+from bson.objectid import ObjectId
 
 load_dotenv(override=True)
 
@@ -26,7 +27,10 @@ class User:
             if users.find_one({"email": user.email}):
                 raise Exception("User already exists")
             else:
-                users.insert_one(user.to_dict())
+                if isinstance(user, dict):
+                    users.insert_one(user)
+                else:
+                    users.insert_one(user.to_dict())
                 return {"status": "success"}
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -40,7 +44,7 @@ class User:
 
     def get_user_by_id(self, id) -> dict:
         users = self.get_users_database()
-        return users.find_one({"_id": id})
+        return users.find_one({"_id": ObjectId(id)})
     
     def get_user_by_email(self, email):
         """
@@ -106,12 +110,16 @@ class Project:
         if projects.find_one({"title": project.title, "owner": project.owner}):
             raise Exception("Project already exists")
         else:
-            projects.insert_one(project.to_dict())
+            if isinstance(project, dict):
+                projects.insert_one(project)
+                
+            else:
+                projects.insert_one(project.to_dict())
             return {"status": "success"}
 
     def get_project(self, id):
         projects = self.get_projects_database()
-        return projects.find_one({"_id": id})
+        return projects.find_one({"_id": ObjectId(id)})
     
     def get_project_id(self, title, owner):
         projects = self.get_projects_database()
@@ -238,7 +246,11 @@ class Transaction:
         if transactions.find_one({"transaction_id": transaction["transaction_id"]}):
             raise Exception("Transaction already exists")
         else:
-            transactions.insert_one(transaction.to_dict())
+            if isinstance(transaction, dict):
+                transactions.insert_one(transaction)
+            else:
+                transactions.insert_one(transaction.to_dict())
+            return {"status": "success"}
 
     def search_transaction(self, query):
         transactions = self.get_transactions_database()
@@ -266,25 +278,29 @@ class Transaction:
             amount (float): Amount to pay
             valid_until (str): Valid duration. After this, transaction won't be accepted (default: 30 days from now)
         """
-        try:
-            userdb = User()
-            projectdb = Project()
-            project = projectdb.get_project(transaction.project_id)
-            buyer = userdb.get_user_by_id(transaction.buyer_id)
+        userdb = User()
+        projectdb = Project()
+        project = projectdb.get_project(transaction.project_id)
+        buyer = userdb.get_user_by_id(transaction.buyer_id)
 
-            if transaction.project_id in buyer["projects"]:
-                if project["budget"] < transaction.amount:
-                    raise Exception("Seller does not have enough balance")
-                else:
-                    buyer["budget"] += transaction.amount
-                    project["budget"] -= transaction.amount
-                    userdb.update_user(buyer.email, buyer)
-                    projectdb.update_project(transaction.project_id, project)
-                    return {"status": "success"}
-            else: 
-                raise Exception("Buyer is not a participant of the project")
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
+        # if transaction.project_id in buyer["projects"]:
+        #     if project["budget"] < transaction.amount:
+        #         raise Exception("Seller does not have enough balance")
+        #     else:
+        #         buyer["balance"] += transaction.amount
+        #         project["budget"] -= transaction.amount
+        #         userdb.update_user(buyer.email, buyer)
+        #         projectdb.update_project(transaction.project_id, project)
+        #         return {"status": "success"}
+        # else: 
+        #     raise Exception("Buyer is not a participant of the project")
+
+        buyer["balance"] += transaction.amount
+        project["budget"] -= transaction.amount
+        userdb.update_user(buyer.email, buyer)
+        projectdb.update_project(transaction.project_id, project)
+        return {"status": "success"}
+    
 
     def pay(self, transaction: TransactionInfo):
         """
@@ -302,26 +318,26 @@ class Transaction:
         Returns:
             dict: {"status": "success"} if successful, {"status": "error", "message": str(e)} if error
         """
-        try:
-            transactions = self.get_transactions_database()
-            survey = Survey()
-            survey_status  = survey.verify_survey(transaction.seller_id, transaction.buyer_id, transaction.project_id)
-            if survey_status:
-                transactions.insert_one(transaction)
-                self.pay_helper(transaction)
-                if self.find_transaction(transaction.transaction_id):
-                    raise Exception("Transaction already exists")
-                else:
-                    self.insert_transaction(transaction)
-                return {"status": "success"}
+        transactions = self.get_transactions_database()
+        survey = Survey()
+        survey_status  = survey.verify_survey(transaction.seller_id, transaction.buyer_id, transaction.project_id)
+        if survey_status:
+            self.pay_helper(transaction)
+            if self.find_transaction(transaction.transaction_id):
+                raise Exception("Transaction already exists")
             else:
-                raise Exception("Survey is not verified")
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
+                self.insert_transaction(transaction)
+            return {"status": "success"}
+        else:
+            raise Exception("Survey is not verified")
         
     def delete_transaction(self, transaction_id):
         transactions = self.get_transactions_database()
         transactions.delete_one({"transaction_id": transaction_id})
+
+    def get_transaction_id(self, seller_id, buyer_id, project_id):
+        transactions = self.get_transactions_database()
+        return transactions.find_one({"seller_id": seller_id, "buyer_id": buyer_id, "project_id": project_id})["_id"]
 
 
 class Survey:
@@ -366,7 +382,10 @@ class Survey:
         if self.get_survey(seller_id, buyer_id, project_id):
             if self.verify_survey(seller_id, buyer_id, project_id):
                 survey = SurveyInfo(seller_id, buyer_id, project_id, content, answers, True)
-                self.insert_survey(survey.to_dict())
+                if isinstance(survey, dict):
+                    self.insert_survey(survey)
+                else:
+                    self.insert_survey(survey.to_dict())
                 return {"status": "success"}
             else:
                 raise Exception("Survey is not completed")
@@ -387,6 +406,8 @@ class Survey:
     
     def verify_survey(self, seller_id, buyer_id, project_id):
         survey = self.get_survey(seller_id, buyer_id, project_id)
+        if survey is None:
+            return True
         survey_answers = survey["answers"]
         return all(answer != "" for answer in survey_answers)
     

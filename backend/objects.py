@@ -69,21 +69,19 @@ class ProjectInfo(BaseModel):
     
 @dataclass
 class TransactionInfo(BaseModel):
-    transaction_id: str
     project_id: str
     seller_id: str
     buyer_id: str
     amount: float
     valid_until: str = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
 
-    def __init__(self, transaction_id, project_id, seller_id, buyer_id, amount, valid_until=(datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")):
-        super().__init__(transaction_id=transaction_id, project_id=project_id, seller_id=seller_id, buyer_id=buyer_id, amount=amount, valid_until=valid_until)
+    def __init__(self, project_id, seller_id, buyer_id, amount, valid_until=(datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")):
+        super().__init__(project_id=project_id, seller_id=seller_id, buyer_id=buyer_id, amount=amount, valid_until=valid_until)
 
 
 
     def to_dict(self):
         return {
-            "transaction_id": self.transaction_id,
             "project_id": self.project_id,
             "seller_id": self.seller_id,
             "buyer_id": self.buyer_id,
