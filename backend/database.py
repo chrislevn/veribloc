@@ -253,13 +253,25 @@ class Transaction:
         return transactions.find_one({"transaction_id": transaction_id})
     
     def pay_helper(self, transaction: TransactionInfo): 
+        """
+        Pay for a project with a transaction
+        TODO: Add Smart Contract
+
+        Args:
+            TransactionInfo: Transaction information. Includes: 
+            transaction_id (str): Transaction ID
+            project_id (str): Project ID
+            seller_id (str): Seller ID
+            buyer_id (str): Buyer ID
+            amount (float): Amount to pay
+            valid_until (str): Valid duration. After this, transaction won't be accepted (default: 30 days from now)
+        """
         try:
             userdb = User()
             projectdb = Project()
             project = projectdb.get_project(transaction.project_id)
             buyer = userdb.get_user_by_id(transaction.buyer_id)
 
-    
             if transaction.project_id in buyer["projects"]:
                 if project["budget"] < transaction.amount:
                     raise Exception("Seller does not have enough balance")
@@ -286,7 +298,9 @@ class Transaction:
             buyer_id (str): Buyer ID
             amount (float): Amount to pay
             valid_until (str): Valid duration. After this, transaction won't be accepted (default: 30 days from now)
-        
+
+        Returns:
+            dict: {"status": "success"} if successful, {"status": "error", "message": str(e)} if error
         """
         try:
             transactions = self.get_transactions_database()

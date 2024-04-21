@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from database import User, Project, Transaction, Survey
 from objects import UserInfo, ProjectInfo, TransactionInfo, SurveyInfo
+import uvicorn
 
 app = FastAPI()
 
@@ -166,3 +167,6 @@ def pay(transaction: TransactionInfo):
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
